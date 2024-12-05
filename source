@@ -57,10 +57,14 @@ end)
 
 if not Success then
     warn("\nVexon Library - Failed to load Feather Icons. Error code: " .. Response .. "\n")
-end  
+end	
 
 local function GetIcon(IconName)
-    return Icons[IconName] or nil
+    if Icons[IconName] ~= nil then
+        return Icons[IconName]
+    else
+        return nil
+    end
 end   
 
 local Vexon = Instance.new("ScreenGui")
@@ -72,37 +76,39 @@ else
     Vexon.Parent = gethui() or game.CoreGui
 end
 
-local function CleanupPreviousInstances()
-    if gethui then
-        for _, Interface in ipairs(gethui():GetChildren()) do
-            if Interface.Name == Vexon.Name and Interface ~= Vexon then
-                Interface:Destroy()
-            end
+if gethui then
+    for _, Interface in ipairs(gethui():GetChildren()) do
+        if Interface.Name == Vexon.Name and Interface ~= Vexon then
+            Interface:Destroy()
         end
-    else
-        for _, Interface in ipairs(game.CoreGui:GetChildren()) do
-            if Interface.Name == Vexon.Name and Interface ~= Vexon then
-                Interface:Destroy()
-            end
+    end
+else
+    for _, Interface in ipairs(game.CoreGui:GetChildren()) do
+        if Interface.Name == Vexon.Name and Interface ~= Vexon then
+            Interface:Destroy()
         end
     end
 end
 
-CleanupPreviousInstances()
-
 function VexonLib:IsRunning()
-    return Vexon.Parent == (gethui() or game:GetService("CoreGui"))
+    if gethui then
+        return Vexon.Parent == gethui()
+    else
+        return Vexon.Parent == game:GetService("CoreGui")
+    end
 end
 
 local function AddConnection(Signal, Function)
-    if not VexonLib:IsRunning() then return end
+    if (not VexonLib:IsRunning()) then
+        return
+    end
     local SignalConnect = Signal:Connect(Function)
     table.insert(VexonLib.Connections, SignalConnect)
     return SignalConnect
 end
 
 task.spawn(function()
-    while VexonLib:IsRunning() do
+    while (VexonLib:IsRunning()) do
         wait()
     end
 
@@ -135,10 +141,7 @@ local function AddDraggingFunctionality(DragPoint, Main)
         UserInputService.InputChanged:Connect(function(Input)
             if Input == DragInput and Dragging then
                 local Delta = Input.Position - MousePos
-                TweenService:Create(Main, TweenInfo.new(0.45, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), 
-                {
-                    Position  = UDim2.new(FramePos.X.Scale, FramePos.X.Offset + Delta.X, FramePos.Y.Scale, FramePos.Y.Offset + Delta.Y)
-                }):Play()
+                TweenService:Create(Main, TweenInfo.new(0.45, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Position  = UDim2.new(FramePos.X.Scale,FramePos.X.Offset + Delta.X, FramePos.Y.Scale, FramePos.Y.Offset + Delta.Y)}):Play()
             end
         end)
     end)
@@ -167,29 +170,39 @@ local function MakeElement(ElementName, ...)
 end
 
 local function SetProps(Element, Props)
-    for Property, Value in pairs(Props) do
+    table.foreach(Props, function(Property, Value)
         Element[Property] = Value
-    end
+    end)
     return Element
 end
 
 local function SetChildren(Element, Children)
-    for _, Child in ipairs(Children) do
+    table.foreach(Children, function(_, Child)
         Child.Parent = Element
-    end
+    end)
     return Element
+end
+
+local function Round(Number, Factor)
+    local Result = math.floor(Number/Factor + (math.sign(Number) * 0.5)) * Factor
+    if Result < 0 then Result = Result + Factor end
+    return Result
 end
 
 local function ReturnProperty(Object)
     if Object:IsA("Frame") or Object:IsA("TextButton") then
         return "BackgroundColor3"
-    elseif Object:IsA("ScrollingFrame") then
+    end 
+    if Object:IsA("ScrollingFrame") then
         return "ScrollBarImageColor3"
-    elseif Object:IsA("UIStroke") then
+    end 
+    if Object:IsA("UIStroke") then
         return "Color"
-    elseif Object:IsA("TextLabel") or Object:IsA("TextBox") then
+    end 
+    if Object:IsA("TextLabel") or Object:IsA("TextBox") then
         return "TextColor3"
-    elseif Object:IsA("ImageLabel") or Object:IsA("ImageButton") then
+    end   
+    if Object:IsA("ImageLabel") or Object:IsA("ImageButton") then
         return "ImageColor3"
     end   
 end
@@ -211,14 +224,17 @@ local function SetTheme()
     end    
 end
 
-local function LoadCfg(Config)
-    local success, Data = pcall(function() return HttpService:JSONDecode(Config) end)
-    if not success then
-        warn("Vexon Library Config Loader - Failed to load config")
-        return
-    end
+local function PackColor(Color)
+    return {R = Color.R * 255, G = Color.G * 255, B = Color.B * 255}
+end    
 
-    for a, b in pairs(Data) do
+local function UnpackColor(Color)
+    return Color3.fromRGB(Color.R, Color.G, Color.B)
+end
+
+local function LoadCfg(Config)
+    local Data = HttpService:JSONDecode(Config)
+    table.foreach(Data, function(a,b)
         if VexonLib.Flags[a] then
             spawn(function() 
                 if VexonLib.Flags[a].Type == "Colorpicker" then
@@ -228,41 +244,34 @@ local function LoadCfg(Config)
                 end    
             end)
         else
-            warn("Vexon Library Config Loader - Could not find ", a, b)
+            warn("Vexon Library Config Loader - Could not find ", a ,b)
         end
-    end
+    end)
 end
 
 local function SaveCfg(Name)
     local Data = {}
-    for i, v in pairs(VexonLib.Flags) do
+    for i,v in pairs(VexonLib.Flags) do
         if v.Save then
             if v.Type == "Colorpicker" then
                 Data[i] = PackColor(v.Value)
             else
                 Data[i] = v.Value
             end
-        end    
+        end	
     end
-
-    local success, err = pcall(function()
-        writefile(VexonLib.Folder .. "/" .. Name .. ".txt", HttpService:JSONEncode(Data))
-    end)
-    if not success then
-        warn("Failed to save configuration: " .. err)
-    end
+    writefile(VexonLib.Folder .. "/" .. Name .. ".txt", tostring(HttpService:JSONEncode(Data)))
 end
 
-local function PackColor(Color)
-    return {R = Color.R * 255, G = Color.G * 255, B = Color.B * 255}
-end    
-
-local function UnpackColor(Color)
-    return Color3.fromRGB(Color.R, Color.G, Color.B)
-end
+local WhitelistedMouse = {Enum.UserInputType.MouseButton1, Enum.UserInputType.MouseButton2,Enum.UserInputType.MouseButton3}
+local BlacklistedKeys = {Enum.KeyCode.Unknown,Enum.KeyCode.W,Enum.KeyCode.A,Enum.KeyCode.S,Enum.KeyCode.D,Enum.KeyCode.Up,Enum.KeyCode.Left,Enum.KeyCode.Down,Enum.KeyCode.Right,Enum.KeyCode.Slash,Enum.KeyCode.Tab,Enum.KeyCode.Backspace,Enum.KeyCode.Escape}
 
 local function CheckKey(Table, Key)
-    return table.find(Table, Key) ~= nil
+    for _, v in next, Table do
+        if v == Key then
+            return true
+        end
+    end
 end
 
 function VexonLib:MakeWindow(WindowConfig)
@@ -271,31 +280,24 @@ function VexonLib:MakeWindow(WindowConfig)
     local Loaded = false
     local UIHidden = false
 
-    -- Default settings
-    local defaults = {
-        Name = "Vexon Library",
-        ConfigFolder = "Vexon",
-        SaveConfig = false,
-        IntroEnabled = true,
-        IntroText = "Vexon Library",
-        CloseCallback = function() end,
-        ShowIcon = false,
-        Icon = "rbxassetid://8834748103",
-        IntroIcon = "rbxassetid://8834748103",
-        Theme = "Default"
-    }
-
-    for key, value in pairs(defaults) do
-        WindowConfig[key] = WindowConfig[key] or value
-    end
-
+    WindowConfig = WindowConfig or {}
+    WindowConfig.Name = WindowConfig.Name or "Vexon Library"
+    WindowConfig.ConfigFolder = WindowConfig.ConfigFolder or WindowConfig.Name
+    WindowConfig.SaveConfig = WindowConfig.SaveConfig or false
+    WindowConfig.IntroEnabled = WindowConfig.IntroEnabled or true
+    WindowConfig.IntroText = WindowConfig.IntroText or "Vexon Library"
+    WindowConfig.CloseCallback = WindowConfig.CloseCallback or function() end
+    WindowConfig.ShowIcon = WindowConfig.ShowIcon or false
+    WindowConfig.Icon = WindowConfig.Icon or "rbxassetid://8834748103"
+    WindowConfig.IntroIcon = WindowConfig.IntroIcon or "rbxassetid://8834748103"
+    WindowConfig.Themes = WindowConfig.Themes or VexonLib.Themes.Default
     VexonLib.Folder = WindowConfig.ConfigFolder
     VexonLib.SaveCfg = WindowConfig.SaveConfig
 
     if WindowConfig.SaveConfig then
         if not isfolder(WindowConfig.ConfigFolder) then
             makefolder(WindowConfig.ConfigFolder)
-        end    
+        end	
     end
 
     local TabHolder = AddThemeObject(SetChildren(SetProps(MakeElement("ScrollFrame", Color3.fromRGB(255, 255, 255), 4), {
@@ -442,7 +444,7 @@ function VexonLib:MakeWindow(WindowConfig)
             Position = UDim2.new(0, 25, 0, 15)
         })
         WindowIcon.Parent = MainWindow.TopBar
-    end   
+    end	
 
     AddDraggingFunctionality(DragPoint, MainWindow)
 
@@ -478,7 +480,7 @@ function VexonLib:MakeWindow(WindowConfig)
 
             TweenService:Create(MainWindow, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = UDim2.new(0, WindowName.TextBounds.X + 140, 0, 50)}):Play()
             wait(0.1)
-            WindowStuff.Visible = false    
+            WindowStuff.Visible = false	
         end
         Minimized = not Minimized    
     end)
@@ -506,7 +508,7 @@ function VexonLib:MakeWindow(WindowConfig)
 
         TweenService:Create(LoadSequenceLogo, TweenInfo.new(.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {ImageTransparency = 0, Position = UDim2.new(0.5, 0, 0.5, 0)}):Play()
         wait(0.8)
-        TweenService:Create(LoadSequenceLogo, TweenInfo.new(.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, -(LoadSequenceText.TextBounds.X / 2), 0.5, 0)}):Play()
+        TweenService:Create(LoadSequenceLogo, TweenInfo.new(.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, -(LoadSequenceText.TextBounds.X/2), 0.5, 0)}):Play()
         wait(0.3)
         TweenService:Create(LoadSequenceText, TweenInfo.new(.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {TextTransparency = 0}):Play()
         wait(2)
@@ -609,13 +611,12 @@ function VexonLib:MakeWindow(WindowConfig)
                     AddThemeObject(MakeElement("Stroke"), "Stroke")
                 }), "Second")
 
-                return {
-                    Set = function(ToChange)
-                        LabelFrame.Content.Text = ToChange
-                    end
-                }
+                local LabelFunction = {}
+                function LabelFunction:Set(ToChange)
+                    LabelFrame.Content.Text = ToChange
+                end
+                return LabelFunction
             end
-
             function ElementFunction:AddParagraph(Text, Content)
                 Text = Text or "Text"
                 Content = Content or "Content"
@@ -648,13 +649,12 @@ function VexonLib:MakeWindow(WindowConfig)
 
                 ParagraphFrame.Content.Text = Content
 
-                return {
-                    Set = function(ToChange)
-                        ParagraphFrame.Content.Text = ToChange
-                    end
-                }
+                local ParagraphFunction = {}
+                function ParagraphFunction:Set(ToChange)
+                    ParagraphFrame.Content.Text = ToChange
+                end
+                return ParagraphFunction
             end    
-
             function ElementFunction:AddButton(ButtonConfig)
                 ButtonConfig = ButtonConfig or {}
                 ButtonConfig.Name = ButtonConfig.Name or "Button"
@@ -686,54 +686,38 @@ function VexonLib:MakeWindow(WindowConfig)
                 }), "Second")
 
                 AddConnection(Click.MouseEnter, function()
-                    TweenService:Create(ButtonFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-                    {
-                        BackgroundColor3 = Color3.fromRGB(
-                            VexonLib.Themes[VexonLib.SelectedTheme].Second.R * 255 + 3,
-                            VexonLib.Themes[VexonLib.SelectedTheme].Second.G * 255 + 3,
-                            VexonLib.Themes[VexonLib.SelectedTheme].Second.B * 255 + 3
-                        )
-                    }):Play()
+                    TweenService:Create(ButtonFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(VexonLib.Themes[VexonLib.SelectedTheme].Second.R * 255 + 3, VexonLib.Themes[VexonLib.SelectedTheme].Second.G * 255 + 3, VexonLib.Themes[VexonLib.SelectedTheme].Second.B * 255 + 3)}):Play()
                 end)
 
                 AddConnection(Click.MouseLeave, function()
-                    TweenService:Create(ButtonFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), 
-                    {BackgroundColor3 = VexonLib.Themes[VexonLib.SelectedTheme].Second}):Play()
+                    TweenService:Create(ButtonFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = VexonLib.Themes[VexonLib.SelectedTheme].Second}):Play()
                 end)
 
                 AddConnection(Click.MouseButton1Up, function()
-                    TweenService:Create(ButtonFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-                    {
-                        BackgroundColor3 = Color3.fromRGB(
-                            VexonLib.Themes[VexonLib.SelectedTheme].Second.R * 255 + 3,
-                            VexonLib.Themes[VexonLib.SelectedTheme].Second.G * 255 + 3,
-                            VexonLib.Themes[VexonLib.SelectedTheme].Second.B * 255 + 3
-                        )
-                    }):Play()
-                    spawn(function() ButtonConfig.Callback() end)
+                    TweenService:Create(ButtonFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(VexonLib.Themes[VexonLib.SelectedTheme].Second.R * 255 + 3, VexonLib.Themes[VexonLib.SelectedTheme].Second.G * 255 + 3, VexonLib.Themes[VexonLib.SelectedTheme].Second.B * 255 + 3)}):Play()
+                    spawn(function()
+                        ButtonConfig.Callback()
+                    end)
                 end)
 
                 AddConnection(Click.MouseButton1Down, function()
-                    TweenService:Create(ButtonFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-                    {
-                        BackgroundColor3 = Color3.fromRGB(
-                            VexonLib.Themes[VexonLib.SelectedTheme].Second.R * 255 + 6,
-                            VexonLib.Themes[VexonLib.SelectedTheme].Second.G * 255 + 6,
-                            VexonLib.Themes[VexonLib.SelectedTheme].Second.B * 255 + 6
-                        )
-                    }):Play()
+                    TweenService:Create(ButtonFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(VexonLib.Themes[VexonLib.SelectedTheme].Second.R * 255 + 6, VexonLib.Themes[VexonLib.SelectedTheme].Second.G * 255 + 6, VexonLib.Themes[VexonLib.SelectedTheme].Second.B * 255 + 6)}):Play()
                 end)
 
                 function Button:Set(ButtonText)
                     ButtonFrame.Content.Text = ButtonText
-                end    
+                end	
 
                 return Button
             end    
             return ElementFunction   
-        end    
+        end	
 
-        return GetElements(Container)  
+        local ElementFunction = {}
+        for i, v in next, GetElements(Container) do
+            ElementFunction[i] = v 
+        end
+        return ElementFunction   
     end  
 
 function VexonLib:Destroy()
