@@ -18,6 +18,30 @@ local VexonLib = {
             Divider = Color3.fromRGB(60, 60, 60),
             Text = Color3.fromRGB(240, 240, 240),
             TextDark = Color3.fromRGB(150, 150, 150)
+        },
+        Light = {
+            Main = Color3.fromRGB(255, 255, 255),
+            Second = Color3.fromRGB(220, 220, 220),
+            Stroke = Color3.fromRGB(180, 180, 180),
+            Divider = Color3.fromRGB(180, 180, 180),
+            Text = Color3.fromRGB(0, 0, 0),
+            TextDark = Color3.fromRGB(100, 100, 100)
+        },
+        Dark = {
+            Main = Color3.fromRGB(60, 60, 60),
+            Second = Color3.fromRGB(45, 45, 45),
+            Stroke = Color3.fromRGB(30, 30, 30),
+            Divider = Color3.fromRGB(30, 30, 30),
+            Text = Color3.fromRGB(255, 255, 255),
+            TextDark = Color3.fromRGB(200, 200, 200)
+        },
+        Blue = {
+            Main = Color3.fromRGB(34, 34, 255),
+            Second = Color3.fromRGB(32, 32, 128),
+            Stroke = Color3.fromRGB(60, 60, 180),
+            Divider = Color3.fromRGB(60, 60, 150),
+            Text = Color3.fromRGB(240, 240, 240),
+            TextDark = Color3.fromRGB(150, 150, 150)
         }
     },
     SelectedTheme = "Default",
@@ -250,10 +274,6 @@ local function CheckKey(Table, Key)
     end
 end
 
--- Element Creation Functions...
--- ... Keep existing element creation functions
--- (Omitting for brevity)
-
 function VexonLib:MakeWindow(WindowConfig)
     local FirstTab = true
     local Minimized = false
@@ -270,6 +290,8 @@ function VexonLib:MakeWindow(WindowConfig)
     WindowConfig.ShowIcon = WindowConfig.ShowIcon or false
     WindowConfig.Icon = WindowConfig.Icon or "rbxassetid://8834748103"
     WindowConfig.IntroIcon = WindowConfig.IntroIcon or "rbxassetid://8834748103"
+    WindowConfig.Theme = WindowConfig.Theme or "Default"
+
     VexonLib.Folder = WindowConfig.ConfigFolder
     VexonLib.SaveCfg = WindowConfig.SaveConfig
 
